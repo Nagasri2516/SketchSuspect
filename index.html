@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎭 The Imposter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a2e; color: white; height: 100vh; display: flex; flex-direction: column; }
+        .header { background: #16213e; padding: 15px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10; }
+        h1 { color: #ffd700; margin: 0; font-size: 24px; }
+        
+        .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
+        
+        /* Lobby Overlay */
+        #lobbyOverlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26, 26, 46, 0.95); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .lobby-box {
+            background: #16213e; padding: 40px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 400px;
+        }
+        .lobby-box h2 { margin-bottom: 20px; color: #4CAF50; }
+        .lobby-btn {
+            width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px;
+            font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .btn-create { background: #4CAF50; color: white; }
+        .btn-create:hover { background: #45a049; }
+        .join-group { display: flex; gap: 10px; margin-top: 20px; }
+        .join-group input {
+            flex: 1; padding: 15px; border-radius: 8px; border: 2px solid #333;
+            background: #0f3460; color: white; font-size: 16px; text-transform: uppercase;
+        }
+        .btn-join { background: #2196F3; color: white; padding: 15px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-join:hover { background: #1976D2; }
+
+        /* Game Area */
+        .canvas-area { flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; background: #0f3460; }
+        .canvas-header { width: 100%; max-width: 800px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .room-code-display { background: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 20px; font-family: monospace; font-size: 18px; color: #ffd700; letter-spacing: 2px; }
+        .turn-indicator { font-size: 18px; font-weight: bold; padding: 8px 15px; border-radius: 20px; background: rgba(0,0,0,0.5); }
+        .turn-yours { background: #4CAF50; color: white; animation: pulse 2s infinite; }
+        .turn-waiting { background: #f44336; color: white; }
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); } 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); } }
+
+        #drawCanvas {
+            background: white; border-radius: 8px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            cursor: crosshair; touch-action: none;
+        }
+        .canvas-locked { cursor: not-allowed !important; opacity: 0.8; }
+        
+        .toolbar { margin-top: 15px; display: flex; gap: 15px; background: rgba(0,0,0,0.4); padding: 10px 20px; border-radius: 30px; }
+        .color-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; cursor: pointer; }
+        .color-btn.active { transform: scale(1.2); border: 2px solid #ffd700; }
+        .brush-size { width: 100px; }
+
+        /* Sidebar / Chat */
+        .sidebar { flex: 1; max-width: 400px; display: flex; flex-direction: column; background: #16213e; border-left: 2px solid #0f3460; }
+        
+        .player-list { padding: 15px; background: rgba(0,0,0,0.2); border-bottom: 2px solid #0f3460; min-height: 80px; max-height: 150px; overflow-y: auto; }
+        .player-list .player { display: inline-block; padding: 4px 12px; margin: 4px; background: rgba(255,255,255,0.1); border-radius: 12px; font-size: 13px; }
+        .player-list .player.you { background: rgba(76, 175, 80, 0.3); border: 1px solid #4CAF50; }
+        
+        .controls { padding: 15px; display: flex; gap: 10px; border-bottom: 2px solid #0f3460; }
+        .controls button { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-start { background: #ff6b35; color: white; }
+        .btn-start:hover { background: #e55a2b; }
+        
+        #messages { flex: 1; overflow-y: auto; padding: 15px; font-size: 14px; font-family: 'Courier New', monospace; }
+        .message { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .message .from { font-weight: bold; color: #ffd700; }
+        .message .from.me { color: #4CAF50; }
+        .message .from.system { color: #ff6b6b; }
+        .message .from.chat { color: #87CEEB; }
+        
+        .chat-input { padding: 15px; display: flex; gap: 10px; background: rgba(0,0,0,0.2); }
+        .chat-input input { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid #333; background: #2a2a4a; color: white; font-size: 14px; }
+        .chat-input button { padding: 0 20px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎭 The Imposter <span id="connStatus" style="font-size:12px; color:#ffc107;">(Connecting...)</span></h1>
+    </div>
+    
+    <div class="main-container">
+        <!-- Lobby Overlay -->
+        <div id="lobbyOverlay">
+            <div class="lobby-box">
+                <h2>Welcome to The Imposter</h2>
+                <p style="margin-bottom:20px; color:#aaa;">Create a new room or join your friends!</p>
+                <button class="lobby-btn btn-create" id="btnCreateRoom">Create New Room</button>
+                
+                <div class="join-group">
+                    <input type="text" id="joinCodeInput" placeholder="Enter Room Code" maxlength="4">
+                    <button class="btn-join" id="btnJoinRoom">Join</button>
+                </div>
+                <div id="lobbyError" style="color:#f44336; margin-top:15px; display:none;"></div>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-area">
+            <div class="canvas-header">
+                <div class="room-code-display">Room: <span id="displayRoomCode">----</span></div>
+                <div class="turn-indicator turn-waiting" id="turnIndicator">Waiting for game to start...</div>
+            </div>
+            
+            <canvas id="drawCanvas" width="800" height="500" class="canvas-locked"></canvas>
+            
+            <div class="toolbar" id="toolbar" style="opacity: 0.5; pointer-events: none;">
+                <div class="color-btn active" style="background: black;" data-color="black"></div>
+                <div class="color-btn" style="background: red;" data-color="red"></div>
+                <div class="color-btn" style="background: blue;" data-color="blue"></div>
+                <div class="color-btn" style="background: green;" data-color="green"></div>
+                <div class="color-btn" style="background: #ffd700;" data-color="#ffd700"></div>
+                <div class="color-btn" style="background: white;" data-color="white" title="Eraser"></div>
+                <input type="range" id="brushSize" class="brush-size" min="2" max="20" value="5">
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="player-list" id="playerList">
+                <div style="color: #888; font-size: 14px;">No players yet</div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn-start" id="btnStartGame">🚀 Start Game</button>
+            </div>
+            
+            <div id="messages">
+                <div class="message"><span class="from system">System</span> Welcome to The Imposter!</div>
+            </div>
+            
+            <div class="chat-input">
+                <input id="msgInput" placeholder="Type message or /vote [name]">
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ============================================================
+        // GAME CLIENT
+        // ============================================================
+        
+        let socket = null;
+        let myName = '';
+        let myUserId = '';
+        let inRoom = false;
+        let isMyTurn = false;
+        let roomCode = '';
+        
+        // Canvas State
+        const canvas = document.getElementById('drawCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0; let lastY = 0;
+        let currentColor = 'black';
+        let currentBrushSize = 5;
+        
+        // UI Elements
+        const messagesDiv = document.getElementById('messages');
+        const playerListDiv = document.getElementById('playerList');
+        const msgInput = document.getElementById('msgInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const turnIndicator = document.getElementById('turnIndicator');
+        const toolbar = document.getElementById('toolbar');
+        
+        // ============ WEBSOCKET CONNECTION ============
+        function connect() {
+            // Using localtunnel to route internet traffic to your local Java server!
+            socket = new WebSocket('wss://nine-moons-prove.loca.lt');
+            
+            socket.onopen = () => {
+                document.getElementById('connStatus').textContent = '(Connected)';
+                document.getElementById('connStatus').style.color = '#4CAF50';
+            };
+            
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'system') {
+                        addMessage('System', data.message, 'system');
+                        if (data.message.includes('Welcome')) extractMyName(data.message);
+                        if (data.message.includes('Players:')) parsePlayerList(data.message);
+                    } 
+                    else if (data.type === 'chat') {
+                        addMessage('Chat', data.message, 'chat');
+                    }
+                    else if (data.type === 'room_code') {
+                        roomCode = data.message;
+                        document.getElementById('displayRoomCode').textContent = roomCode;
+                        document.getElementById('lobbyOverlay').style.display = 'none';
+                        inRoom = true;
+                    }
+                    else if (data.type === 'line') {
+                        const [x1, y1, x2, y2, color, size] = data.message.split(',');
+                        drawLineOnCanvas(parseFloat(x1), parseFloat(y1), parseFloat(x2), parseFloat(y2), color, parseInt(size), false);
+                    }
+                    else if (data.type === 'clear_canvas') {
+                        clearCanvasLocally();
+                    }
+                    else if (data.type === 'turn') {
+                        handleTurnUpdate(data.message);
+                    }
+                } catch (err) {
+                    console.log('Raw message:', event.data);
+                }
+            };
+            
+            socket.onclose = () => {
+                document.getElementById('connStatus').textContent = '(Disconnected)';
+                document.getElementById('connStatus').style.color = '#f44336';
+                setTimeout(connect, 3000); // Auto reconnect
+            };
+        }
+
+        // ============ LOBBY & CHAT UI ============
+        
+        document.getElementById('btnCreateRoom').onclick = () => {
+            if (socket.readyState === WebSocket.OPEN) socket.send('/create');
+        };
+        
+        document.getElementById('btnJoinRoom').onclick = () => {
+            const code = document.getElementById('joinCodeInput').value.trim();
+            if (code && socket.readyState === WebSocket.OPEN) socket.send('/join ' + code);
+        };
+        
+        document.getElementById('btnStartGame').onclick = () => {
+            if (inRoom) socket.send('/start');
+        };
+        
+        function extractMyName(msg) {
+            const match = msg.match(/Welcome\s+([^!]+)!/);
+            if (match) {
+                myName = match[1].trim();
+                myUserId = myName; // simplified matching
+            }
+        }
+        
+        function parsePlayerList(msg) {
+            const match = msg.match(/Players:\s*([^(]+)\s*\((\d+)\s*total\)/);
+            if (match) {
+                const names = match[1].split(',').map(s => s.trim()).filter(s => s);
+                playerListDiv.innerHTML = '';
+                names.forEach(name => {
+                    const div = document.createElement('span');
+                    div.className = 'player' + (name === myName ? ' you' : '');
+                    div.textContent = name + (name === myName ? ' (you)' : '');
+                    playerListDiv.appendChild(div);
+                });
+            }
+        }
+        
+        function addMessage(from, msg, type) {
+            const div = document.createElement('div');
+            div.className = 'message';
+            const cls = type === 'system' ? 'system' : type === 'chat' ? 'chat' : 'me';
+            div.innerHTML = `<span class="from ${cls}">${from}:</span> ${msg}`;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function sendMessage() {
+            const msg = msgInput.value.trim();
+            if (!msg) return;
+            socket.send(msg);
+            msgInput.value = '';
+        }
+        
+        sendBtn.onclick = sendMessage;
+        msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+        // ============ CANVAS DRAWING ============
+        
+        // Setup drawing defaults
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        
+        function handleTurnUpdate(turnUserId) {
+            if (turnUserId.toLowerCase() === myName.toLowerCase() || turnUserId.toLowerCase() === myUserId.toLowerCase()) {
+                isMyTurn = true;
+                turnIndicator.textContent = "✏️ IT IS YOUR TURN! DRAW!";
+                turnIndicator.className = "turn-indicator turn-yours";
+                canvas.classList.remove('canvas-locked');
+                toolbar.style.opacity = '1';
+                toolbar.style.pointerEvents = 'auto';
+            } else if (turnUserId === "none") {
+                isMyTurn = false;
+                turnIndicator.textContent = "🗳️ Voting Time!";
+                turnIndicator.className = "turn-indicator turn-waiting";
+                canvas.classList.add('canvas-locked');
+                toolbar.style.opacity = '0.5';
+                toolbar.style.pointerEvents = 'none';
+            } else {
+                isMyTurn = false;
+                // Actually the server sends the ID, let's just show "Someone else's turn" 
+                // Since the server sends system message with name, we just show locked
+                turnIndicator.textContent = "⌛ Waiting for turn...";
+                turnIndicator.className = "turn-indicator turn-waiting";
+                canvas.classList.add('canvas-locked');
+                toolbar.style.opacity = '0.5';
+                toolbar.style.pointerEvents = 'none';
+            }
+        }
+        
+        function clearCanvasLocally() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            // Scale mouse coordinates to canvas resolution
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+        
+        canvas.addEventListener('mousedown', (e) => {
+            if (!isMyTurn) return;
+            isDrawing = true;
+            const pos = getMousePos(e);
+            lastX = pos.x; lastY = pos.y;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isMyTurn || !isDrawing) return;
+            const pos = getMousePos(e);
+            drawLineLocallyAndSend(lastX, lastY, pos.x, pos.y);
+            lastX = pos.x; lastY = pos.y;
+        });
+        
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+        
+        function drawLineLocallyAndSend(x1, y1, x2, y2) {
+            // Draw on own canvas
+            drawLineOnCanvas(x1, y1, x2, y2, currentColor, currentBrushSize, true);
+            
+            // Send to server
+            if (socket.readyState === WebSocket.OPEN) {
+                // format: /line x1,y1,x2,y2,color,size
+                socket.send(`/line ${x1},${y1},${x2},${y2},${currentColor},${currentBrushSize}`);
+            }
+        }
+        
+        function drawLineOnCanvas(x1, y1, x2, y2, color, size, isLocal) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.stroke();
+            ctx.closePath();
+        }
+        
+        // Toolbar events
+        document.querySelectorAll('.color-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentColor = btn.getAttribute('data-color');
+            };
+        });
+        
+        document.getElementById('brushSize').oninput = (e) => {
+            currentBrushSize = parseInt(e.target.value);
+        };
+
+        // Connect immediately
+        connect();
+        
+    </script>
+</body>
+</html>
