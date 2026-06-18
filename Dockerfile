@@ -1,4 +1,4 @@
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jdk
 WORKDIR /app
 COPY . /app
 RUN javac -cp ".:Java-WebSocket.jar:slf4j-api.jar:slf4j-simple.jar" ImposterGame.java
