@@ -108,7 +108,7 @@ GameDistributed/
 └── run.bat               → Windows batch file for local development
 
 
-**## 🚀 Running Locally**
+## 🚀 Running Locally
 
 Requirements: Java 17 or higher installed on your machine.
 
